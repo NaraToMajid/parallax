@@ -3,55 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Face Tracking 3D Parallax | Final</title>
+    <title>Face Tracking 3D Parallax + Preview Kamera</title>
     <style>
         body {
             margin: 0;
             overflow: hidden;
-            font-family: 'Arial', sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         #info {
             position: absolute;
             top: 20px;
             left: 20px;
             color: white;
-            background: rgba(0,0,0,0.6);
-            padding: 12px 24px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
             border-radius: 40px;
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(8px);
             border: 1px solid rgba(255,255,255,0.2);
-            z-index: 20;
-            pointer-events: none;
+            z-index: 30;
             font-size: 14px;
             letter-spacing: 1px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
         #status {
             position: absolute;
             bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            color: rgba(255,255,255,0.9);
-            background: rgba(0,0,0,0.5);
+            color: white;
+            background: rgba(0, 0, 0, 0.6);
             padding: 10px 24px;
             border-radius: 50px;
             backdrop-filter: blur(5px);
             border: 1px solid rgba(255,255,255,0.2);
-            z-index: 20;
+            z-index: 30;
             font-size: 16px;
-            font-weight: 300;
-            letter-spacing: 0.5px;
+            font-weight: 400;
             text-align: center;
             white-space: nowrap;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             transition: opacity 0.3s;
         }
         #status.error {
-            background: rgba(255, 50, 50, 0.7);
-            color: white;
+            background: rgba(220, 50, 50, 0.8);
         }
         #status.warning {
-            background: rgba(255, 165, 0, 0.7);
+            background: rgba(255, 165, 0, 0.8);
+        }
+        /* Container untuk video preview dan canvas deteksi */
+        #camera-container {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 220px;
+            height: 165px;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            z-index: 40;
+            backdrop-filter: blur(4px);
+            background: rgba(0,0,0,0.2);
+            resize: both;
+            opacity: 0.95;
+            transition: opacity 0.2s;
+            cursor: move;
+            touch-action: none; /* untuk drag */
+        }
+        #camera-container:hover {
+            opacity: 1;
+            border-color: #00ffff;
+        }
+        #camera-video, #camera-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 12px;
+        }
+        #camera-canvas {
+            z-index: 2;
+            pointer-events: none; /* biar bisa klik tombol di belakang */
+        }
+        #camera-label {
+            position: absolute;
+            bottom: 5px;
+            left: 8px;
+            color: white;
+            background: rgba(0,0,0,0.5);
+            padding: 3px 8px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            backdrop-filter: blur(2px);
+            z-index: 3;
+            border: 1px solid rgba(255,255,255,0.3);
         }
         #overlay {
             position: absolute;
@@ -66,27 +114,43 @@
         canvas {
             display: block;
         }
-        /* Animasi fade in untuk konten */
-        .fade-in {
-            animation: fadeIn 1.5s ease-in-out;
+        /* Drag handle */
+        #drag-handle {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 20px;
+            background: rgba(255,255,255,0.2);
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+            cursor: move;
+            z-index: 5;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        /* Media query untuk mobile */
         @media (max-width: 600px) {
+            #camera-container {
+                width: 160px;
+                height: 120px;
+                bottom: 10px;
+                right: 10px;
+            }
             #info { font-size: 12px; padding: 8px 16px; }
-            #status { font-size: 14px; padding: 8px 20px; white-space: normal; width: 80%; }
+            #status { font-size: 14px; padding: 8px 20px; white-space: normal; width: 70%; }
         }
     </style>
 </head>
 <body>
-    <div id="info">👤 FACE TRACKING · 3D PARALLAX · FINAL</div>
-    <div id="status">📡 Menginisialisasi kamera dan deteksi wajah...</div>
+    <div id="info">👤 FACE TRACKING 3D · PREVIEW KAMERA</div>
+    <div id="status">📡 Menginisialisasi...</div>
+    <div id="camera-container" class="draggable">
+        <div id="drag-handle"></div>
+        <video id="camera-video" autoplay playsinline muted></video>
+        <canvas id="camera-canvas"></canvas>
+        <div id="camera-label">📷 FACE DETECTION</div>
+    </div>
     <div id="overlay"></div>
 
-    <!-- Memuat library face-api.js dan Three.js dari CDN -->
+    <!-- Memuat library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/face-api.js/0.22.2/face-api.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
@@ -94,65 +158,56 @@
         (function() {
             // --- Inisialisasi Three.js Scene ---
             const scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x050510); // warna biru gelap kosmik
+            scene.background = new THREE.Color(0x050510);
             
             const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 15; // Posisi awal kamera Three
+            camera.position.z = 15;
         
             const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.shadowMap.enabled = false; // tidak perlu shadow untuk performa
             document.body.appendChild(renderer.domElement);
             
-            // --- Elemen 3D yang akan bergerak dengan parallax ---
-            
-            // 1. Grup utama yang akan dirotasi berdasarkan posisi wajah
+            // --- Elemen 3D ---
             const worldGroup = new THREE.Group();
             scene.add(worldGroup);
             
-            // 2. Kubus-kubus floating (parallax layer 1 - background)
+            // Kubus latar belakang (layer jauh)
             const cubeGroupFar = new THREE.Group();
-            const colors = [0x4facfe, 0x00f2fe, 0xa18cd1, 0xfbc2eb, 0x43e97b, 0x38f9d7];
-            for (let i = 0; i < 30; i++) {
-                const size = Math.random() * 0.8 + 0.3;
+            const colors = [0x4facfe, 0x00f2fe, 0xa18cd1, 0xfbc2eb, 0x43e97b, 0x38f9d7, 0xff9a9e, 0xfad0c4];
+            for (let i = 0; i < 40; i++) {
+                const size = Math.random() * 0.8 + 0.2;
                 const geometry = new THREE.BoxGeometry(size, size, size);
                 const material = new THREE.MeshStandardMaterial({ 
                     color: colors[Math.floor(Math.random() * colors.length)],
-                    emissive: 0x222222,
-                    roughness: 0.3,
+                    emissive: 0x111111,
+                    roughness: 0.4,
                     metalness: 0.1,
                     transparent: true,
-                    opacity: 0.7
+                    opacity: 0.6
                 });
                 const cube = new THREE.Mesh(geometry, material);
-                
-                // Posisi acak dalam radius 12
-                const radius = 12;
+                const radius = 14;
                 cube.position.x = (Math.random() - 0.5) * radius * 2;
                 cube.position.y = (Math.random() - 0.5) * radius * 1.5;
-                cube.position.z = (Math.random() - 0.5) * radius * 0.8 - 5; // lebih ke belakang
-                
-                // Rotasi acak
+                cube.position.z = (Math.random() - 0.5) * radius * 0.8 - 6;
                 cube.rotation.x = Math.random() * Math.PI;
                 cube.rotation.y = Math.random() * Math.PI;
-                
                 cubeGroupFar.add(cube);
             }
             worldGroup.add(cubeGroupFar);
             
-            // 3. Objek utama: Ikon Wajah 3D (sebagai pusat) - layer tengah
+            // Objek utama: Wajah 3D (layer tengah)
             const faceGroup = new THREE.Group();
             
-            // Lingkaran cahaya di sekitar wajah
+            // Lingkaran cahaya
             const ringGeo = new THREE.TorusGeometry(2.2, 0.08, 16, 100);
-            const ringMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x004444 });
+            const ringMat = new THREE.MeshStandardMaterial({ color: 0x00ffff, emissive: 0x004466 });
             const ring = new THREE.Mesh(ringGeo, ringMat);
             ring.rotation.x = Math.PI / 2;
             ring.rotation.z = Math.PI / 4;
             faceGroup.add(ring);
             
-            // Lingkaran kedua lebih kecil
             const ring2Geo = new THREE.TorusGeometry(1.8, 0.05, 16, 100);
             const ring2Mat = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0x442200 });
             const ring2 = new THREE.Mesh(ring2Geo, ring2Mat);
@@ -160,7 +215,7 @@
             ring2.rotation.z = -Math.PI / 6;
             faceGroup.add(ring2);
             
-            // Bentuk dasar wajah (sphere)
+            // Kepala
             const headGeo = new THREE.SphereGeometry(1.5, 32, 32);
             const headMat = new THREE.MeshStandardMaterial({ color: 0xffdd99, emissive: 0x221100, roughness: 0.4 });
             const head = new THREE.Mesh(headGeo, headMat);
@@ -169,7 +224,7 @@
             
             // Mata
             const eyeGeo = new THREE.SphereGeometry(0.3, 16, 16);
-            const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x333333 });
+            const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
             const pupilGeo = new THREE.SphereGeometry(0.15, 8, 8);
             const pupilMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
             
@@ -195,7 +250,7 @@
             nose.rotation.x = 0.2;
             faceGroup.add(nose);
             
-            // Mulut (torus kecil)
+            // Mulut
             const mouthGeo = new THREE.TorusGeometry(0.5, 0.1, 8, 32, Math.PI);
             const mouthMat = new THREE.MeshStandardMaterial({ color: 0xff6699 });
             const mouth = new THREE.Mesh(mouthGeo, mouthMat);
@@ -207,230 +262,230 @@
             
             worldGroup.add(faceGroup);
             
-            // 4. Partikel kecil (layer depan untuk efek kedalaman)
-            const particleCount = 600;
+            // Partikel (layer depan)
+            const particleCount = 800;
             const particleGeo = new THREE.BufferGeometry();
             const particlePositions = new Float32Array(particleCount * 3);
             const particleColors = new Float32Array(particleCount * 3);
             
             for (let i = 0; i < particleCount; i++) {
-                // Posisi dalam sphere radius 20, tapi lebih banyak di depan
-                const r = 10 + Math.random() * 15;
+                const r = 8 + Math.random() * 18;
                 const theta = Math.random() * Math.PI * 2;
                 const phi = Math.acos(2 * Math.random() - 1);
-                
                 const x = r * Math.sin(phi) * Math.cos(theta);
                 const y = r * Math.sin(phi) * Math.sin(theta);
-                const z = r * Math.cos(phi);
-                
+                const z = r * Math.cos(phi) - 3;
                 particlePositions[i*3] = x;
                 particlePositions[i*3+1] = y;
-                particlePositions[i*3+2] = z - 5; // geser sedikit ke belakang
-                
-                const color = new THREE.Color().setHSL(Math.random() * 0.3 + 0.5, 0.8, 0.6);
+                particlePositions[i*3+2] = z;
+                const color = new THREE.Color().setHSL(Math.random() * 0.2 + 0.5, 0.9, 0.6);
                 particleColors[i*3] = color.r;
                 particleColors[i*3+1] = color.g;
                 particleColors[i*3+2] = color.b;
             }
-            
             particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
             particleGeo.setAttribute('color', new THREE.BufferAttribute(particleColors, 3));
-            
-            const particleMat = new THREE.PointsMaterial({ 
-                size: 0.15, 
-                vertexColors: true,
-                transparent: true,
-                opacity: 0.8,
-                blending: THREE.AdditiveBlending
-            });
+            const particleMat = new THREE.PointsMaterial({ size: 0.12, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending });
             const particles = new THREE.Points(particleGeo, particleMat);
             worldGroup.add(particles);
             
-            // 5. Lampu-lampu
-            // Ambient light
-            const ambientLight = new THREE.AmbientLight(0x404060);
-            scene.add(ambientLight);
-            
-            // Lampu utama dari depan
-            const mainLight = new THREE.DirectionalLight(0xffffff, 1);
+            // Lampu
+            scene.add(new THREE.AmbientLight(0x404060));
+            const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
             mainLight.position.set(1, 1, 5);
             scene.add(mainLight);
-            
-            // Lampu warna dari samping
-            const light1 = new THREE.PointLight(0x4466ff, 1, 20);
-            light1.position.set(5, 2, 5);
-            scene.add(light1);
-            
-            const light2 = new THREE.PointLight(0xff6644, 1, 20);
-            light2.position.set(-5, -1, 5);
-            scene.add(light2);
-            
-            const light3 = new THREE.PointLight(0x44ff88, 0.5, 30);
-            light3.position.set(0, 5, 10);
-            scene.add(light3);
+            scene.add(new THREE.PointLight(0x4466ff, 1, 20).set(5, 2, 5));
+            scene.add(new THREE.PointLight(0xff6644, 1, 20).set(-5, -1, 5));
+            scene.add(new THREE.PointLight(0x44ff88, 0.6, 30).set(0, 5, 10));
             
             // --- Variabel Face Tracking ---
-            let videoElement;
-            let currentFace = null; // { x, y, width, angle? }
-            let faceDetected = false;
-            let detectionActive = true;
-            let modelLoaded = false;
-            
-            // Target rotasi untuk worldGroup (berdasarkan posisi wajah)
-            const targetRotation = { x: 0, y: 0 };
-            const currentRotation = { x: 0, y: 0 };
-            
-            // Untuk smoothing pergerakan
-            const smoothFactor = 0.1;
-            
-            // Ambil elemen status
+            let videoElement = document.getElementById('camera-video');
+            const canvasDetect = document.getElementById('camera-canvas');
+            const ctx = canvasDetect.getContext('2d');
             const statusEl = document.getElementById('status');
             
-            // --- Setup Video ---
+            let faceDetected = false;
+            let modelLoaded = false;
+            let detectionActive = true;
+            
+            // Target rotasi dan smoothing
+            const targetRotation = { x: 0, y: 0 };
+            const currentRotation = { x: 0, y: 0 };
+            const smoothFactor = 0.15; // lebih responsif
+            
+            // Skalator rotasi (maksimum radian)
+            const MAX_ROT_Y = 0.7; // 40 derajat
+            const MAX_ROT_X = 0.4; // 23 derajat
+            
+            // Untuk fallback mouse
+            let mouseX = 0, mouseY = 0;
+            
+            // --- Setup Kamera ---
             async function setupCamera() {
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ 
-                        video: { 
-                            facingMode: 'user',
-                            width: { ideal: 640 },
-                            height: { ideal: 480 }
-                        } 
+                        video: { facingMode: 'user', width: 640, height: 480 } 
                     });
-                    
-                    videoElement = document.createElement('video');
                     videoElement.srcObject = stream;
-                    videoElement.setAttribute('playsinline', '');
-                    videoElement.setAttribute('autoplay', '');
-                    videoElement.setAttribute('muted', '');
-                    videoElement.style.position = 'absolute';
-                    videoElement.style.top = '0';
-                    videoElement.style.left = '0';
-                    videoElement.style.width = '1px'; // Sembunyikan tapi tetap berjalan
-                    videoElement.style.height = '1px';
-                    videoElement.style.opacity = '0';
-                    videoElement.style.pointerEvents = 'none';
-                    document.body.appendChild(videoElement);
+                    await videoElement.play();
                     
-                    return new Promise((resolve) => {
-                        videoElement.onloadedmetadata = () => {
-                            videoElement.play();
-                            resolve(videoElement);
-                        };
-                    });
+                    // Set canvas size sesuai video
+                    canvasDetect.width = videoElement.videoWidth || 640;
+                    canvasDetect.height = videoElement.videoHeight || 480;
+                    
+                    statusEl.innerText = '📷 Kamera aktif, memuat model...';
+                    return videoElement;
                 } catch (err) {
-                    statusEl.innerText = '❌ Tidak dapat mengakses kamera.';
+                    statusEl.innerText = '❌ Kamera tidak dapat diakses. Gunakan mouse.';
                     statusEl.classList.add('error');
-                    console.error(err);
                     throw err;
                 }
             }
             
-            // --- Load FaceAPI models ---
+            // --- Load Model FaceAPI ---
             async function loadModels() {
-                statusEl.innerText = '⏳ Memuat model deteksi wajah...';
-                // Menggunakan CDN face-api.js model
-                const modelUrl = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
                 try {
-                    await faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl);
-                    await faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl);
-                    // Tidak perlu load recognition untuk efisiensi
+                    statusEl.innerText = '⏳ Memuat model deteksi wajah...';
+                    await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
+                    await faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
                     modelLoaded = true;
-                    statusEl.innerText = '✅ Model siap. Mendeteksi wajah...';
+                    statusEl.innerText = '✅ Model siap. Deteksi wajah dimulai.';
                 } catch (err) {
-                    statusEl.innerText = '⚠️ Gagal muat model. Gunakan mode fallback.';
+                    statusEl.innerText = '⚠️ Model gagal dimuat, gunakan mouse.';
                     statusEl.classList.add('warning');
-                    console.warn('Model load error:', err);
-                    // Tetap set true agar deteksi tetap jalan (mungkin gagal, tapi akan pakai fallback)
-                    modelLoaded = true; // tetap coba deteksi
+                    modelLoaded = false;
                 }
             }
             
-            // --- Fungsi deteksi wajah (loop) ---
-            async function detectFace() {
+            // --- Fungsi deteksi wajah dan gambar overlay ---
+            async function detectAndDraw() {
                 if (!detectionActive || !videoElement || videoElement.readyState < 2) {
-                    requestAnimationFrame(detectFace);
+                    requestAnimationFrame(detectAndDraw);
                     return;
                 }
                 
+                // Pastikan ukuran canvas sesuai video
+                if (canvasDetect.width !== videoElement.videoWidth || canvasDetect.height !== videoElement.videoHeight) {
+                    canvasDetect.width = videoElement.videoWidth;
+                    canvasDetect.height = videoElement.videoHeight;
+                }
+                
+                // Gambar video ke canvas
+                ctx.clearRect(0, 0, canvasDetect.width, canvasDetect.height);
+                ctx.drawImage(videoElement, 0, 0, canvasDetect.width, canvasDetect.height);
+                
+                let detected = false;
+                
                 if (modelLoaded) {
                     try {
-                        // Deteksi dengan TinyFaceDetector (cepat)
                         const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
-                        const detections = await faceapi.detectSingleFace(videoElement, options);
+                        const detections = await faceapi.detectSingleFace(videoElement, options).withFaceLandmarks();
                         
                         if (detections) {
-                            const box = detections.box;
-                            // Normalisasi koordinat: relative terhadap video size
-                            const videoWidth = videoElement.videoWidth;
-                            const videoHeight = videoElement.videoHeight;
+                            detected = true;
+                            const box = detections.detection.box;
+                            const landmarks = detections.landmarks;
                             
-                            // Posisi tengah wajah (x dan y dalam range -1..1)
-                            const faceX = ((box.x + box.width / 2) / videoWidth) * 2 - 1;
-                            const faceY = -(((box.y + box.height / 2) / videoHeight) * 2 - 1); // dibalik karena sumbu Y kamera terbalik
+                            // Gambar kotak wajah
+                            ctx.strokeStyle = '#00ffff';
+                            ctx.lineWidth = 3;
+                            ctx.shadowColor = '#00ffff';
+                            ctx.shadowBlur = 10;
+                            ctx.strokeRect(box.x, box.y, box.width, box.height);
                             
-                            // Lebar wajah relatif terhadap lebar video, digunakan untuk perkiraan jarak (z)
-                            const faceWidthRel = box.width / videoWidth;
+                            // Gambar landmark (garis wajah)
+                            ctx.shadowBlur = 5;
+                            ctx.lineWidth = 2;
+                            ctx.strokeStyle = '#ffaa00';
                             
-                            // Update target rotasi: x (pitch) berdasarkan posisi Y, y (yaw) berdasarkan posisi X
-                            // Batasi rotasi maksimal 0.5 rad (~28 derajat)
-                            targetRotation.y = Math.max(-0.5, Math.min(0.5, faceX * 0.8));
-                            targetRotation.x = Math.max(-0.3, Math.min(0.3, faceY * 0.5));
+                            // Gambar outline wajah (jaw line)
+                            const jaw = landmarks.getJawOutline();
+                            ctx.beginPath();
+                            ctx.moveTo(jaw[0].x, jaw[0].y);
+                            for (let i = 1; i < jaw.length; i++) {
+                                ctx.lineTo(jaw[i].x, jaw[i].y);
+                            }
+                            ctx.strokeStyle = '#ffaa00';
+                            ctx.stroke();
                             
-                            // Opsional: gunakan lebar wajah untuk menggeser sedikit Z (parallax skala)
-                            // Tapi kita tidak lakukan di sini agar stabil
+                            // Gambar alis, mata, hidung, mulut dengan warna berbeda
+                            const drawPoints = (points, color) => {
+                                ctx.beginPath();
+                                ctx.strokeStyle = color;
+                                ctx.lineWidth = 2;
+                                ctx.moveTo(points[0].x, points[0].y);
+                                for (let i = 1; i < points.length; i++) {
+                                    ctx.lineTo(points[i].x, points[i].y);
+                                }
+                                ctx.stroke();
+                            };
+                            
+                            drawPoints(landmarks.getLeftEyeBrow(), '#ff6699');
+                            drawPoints(landmarks.getRightEyeBrow(), '#ff6699');
+                            drawPoints(landmarks.getLeftEye(), '#66ff99');
+                            drawPoints(landmarks.getRightEye(), '#66ff99');
+                            drawPoints(landmarks.getNose(), '#66ccff');
+                            drawPoints(landmarks.getMouth(), '#ff6666');
+                            
+                            // Hitung posisi tengah wajah (normalized)
+                            const centerX = (box.x + box.width / 2) / canvasDetect.width;
+                            const centerY = (box.y + box.height / 2) / canvasDetect.height;
+                            
+                            // Konversi ke range -1..1 untuk rotasi
+                            // Y dibalik karena di canvas sumbu Y ke bawah
+                            const normX = (centerX * 2 - 1);
+                            const normY = -(centerY * 2 - 1);
+                            
+                            // Update target rotasi dengan skala
+                            targetRotation.y = Math.max(-MAX_ROT_Y, Math.min(MAX_ROT_Y, normX * 1.2));
+                            targetRotation.x = Math.max(-MAX_ROT_X, Math.min(MAX_ROT_X, normY * 0.9));
                             
                             if (!faceDetected) {
                                 faceDetected = true;
-                                statusEl.innerText = '👤 Wajah terdeteksi! Gerakkan kepala.';
+                                statusEl.innerText = '👤 Wajah terdeteksi!';
                                 statusEl.classList.remove('error', 'warning');
                             }
-                        } else {
-                            if (faceDetected) {
-                                faceDetected = false;
-                                statusEl.innerText = '👀 Wajah hilang, gunakan gerakan mouse fallback.';
-                            } else if (!faceDetected) {
-                                statusEl.innerText = '🔍 Cari wajah... (gerakkan mouse sebagai fallback)';
-                            }
-                            // Fallback ke mouse jika tidak ada deteksi
-                            updateTargetFromMouseFallback();
                         }
                     } catch (err) {
                         console.warn('Detection error:', err);
-                        updateTargetFromMouseFallback();
                     }
-                } else {
-                    // Model belum siap, fallback mouse
-                    updateTargetFromMouseFallback();
                 }
                 
-                requestAnimationFrame(detectFace);
+                if (!detected) {
+                    if (faceDetected) {
+                        faceDetected = false;
+                        statusEl.innerText = '👀 Wajah hilang, pakai mouse fallback';
+                    }
+                    // Fallback ke mouse
+                    updateTargetFromMouse();
+                }
+                
+                requestAnimationFrame(detectAndDraw);
             }
             
             // --- Mouse fallback ---
-            function updateTargetFromMouseFallback() {
-                // Gunakan posisi mouse jika tidak ada wajah
-                const mouseX = (window.mouseX || 0) / window.innerWidth * 2 - 1;
-                const mouseY = -(window.mouseY || 0) / window.innerHeight * 2 + 1;
-                
-                targetRotation.y = Math.max(-0.5, Math.min(0.5, mouseX * 0.8));
-                targetRotation.x = Math.max(-0.3, Math.min(0.3, mouseY * 0.5));
+            function updateTargetFromMouse() {
+                if (mouseX !== 0 || mouseY !== 0) {
+                    const normX = (mouseX / window.innerWidth) * 2 - 1;
+                    const normY = -(mouseY / window.innerHeight) * 2 + 1;
+                    targetRotation.y = Math.max(-MAX_ROT_Y, Math.min(MAX_ROT_Y, normX * 1.0));
+                    targetRotation.x = Math.max(-MAX_ROT_X, Math.min(MAX_ROT_X, normY * 0.7));
+                }
             }
             
-            // Menyimpan posisi mouse
+            // Event mouse
             window.addEventListener('mousemove', (e) => {
-                window.mouseX = e.clientX;
-                window.mouseY = e.clientY;
+                mouseX = e.clientX;
+                mouseY = e.clientY;
             });
-            
-            // Untuk touch device
             window.addEventListener('touchmove', (e) => {
                 if (e.touches.length) {
-                    window.mouseX = e.touches[0].clientX;
-                    window.mouseY = e.touches[0].clientY;
+                    mouseX = e.touches[0].clientX;
+                    mouseY = e.touches[0].clientY;
                 }
             });
             
-            // --- Animasi loop untuk Three.js ---
+            // --- Animasi Three.js ---
             function animate() {
                 requestAnimationFrame(animate);
                 
@@ -438,20 +493,75 @@
                 currentRotation.x += (targetRotation.x - currentRotation.x) * smoothFactor;
                 currentRotation.y += (targetRotation.y - currentRotation.y) * smoothFactor;
                 
-                // Terapkan rotasi ke worldGroup
                 worldGroup.rotation.x = currentRotation.x;
                 worldGroup.rotation.y = currentRotation.y;
                 
-                // Efek tambahan: putar cubeGroupFar sedikit berlawanan untuk parallax lebih dalam
+                // Efek tambahan
                 cubeGroupFar.rotation.y += 0.0005;
                 cubeGroupFar.rotation.x += 0.0003;
-                
-                // Putar partikel secara lambat
                 particles.rotation.y += 0.0002;
                 
-                // Render scene
                 renderer.render(scene, camera);
             }
+            
+            // --- Draggable camera window ---
+            function makeDraggable(el) {
+                let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+                const handle = document.getElementById('drag-handle');
+                handle.onmousedown = dragMouseDown;
+                handle.ontouchstart = dragTouchStart;
+                
+                function dragMouseDown(e) {
+                    e.preventDefault();
+                    pos3 = e.clientX;
+                    pos4 = e.clientY;
+                    document.onmouseup = closeDrag;
+                    document.onmousemove = elementDrag;
+                }
+                
+                function dragTouchStart(e) {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    pos3 = touch.clientX;
+                    pos4 = touch.clientY;
+                    document.ontouchend = closeDrag;
+                    document.ontouchmove = elementDragTouch;
+                }
+                
+                function elementDrag(e) {
+                    e.preventDefault();
+                    pos1 = pos3 - e.clientX;
+                    pos2 = pos4 - e.clientY;
+                    pos3 = e.clientX;
+                    pos4 = e.clientY;
+                    el.style.top = (el.offsetTop - pos2) + 'px';
+                    el.style.left = (el.offsetLeft - pos1) + 'px';
+                    el.style.bottom = 'auto';
+                    el.style.right = 'auto';
+                }
+                
+                function elementDragTouch(e) {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    pos1 = pos3 - touch.clientX;
+                    pos2 = pos4 - touch.clientY;
+                    pos3 = touch.clientX;
+                    pos4 = touch.clientY;
+                    el.style.top = (el.offsetTop - pos2) + 'px';
+                    el.style.left = (el.offsetLeft - pos1) + 'px';
+                    el.style.bottom = 'auto';
+                    el.style.right = 'auto';
+                }
+                
+                function closeDrag() {
+                    document.onmouseup = null;
+                    document.onmousemove = null;
+                    document.ontouchend = null;
+                    document.ontouchmove = null;
+                }
+            }
+            
+            makeDraggable(document.getElementById('camera-container'));
             
             // --- Inisialisasi utama ---
             async function init() {
@@ -459,26 +569,22 @@
                     await setupCamera();
                     await loadModels();
                     
-                    // Mulai deteksi setelah semuanya siap
-                    setTimeout(() => {
-                        detectFace();
-                    }, 1000);
-                    
+                    // Mulai loop deteksi
+                    detectAndDraw();
                     animate();
                     
-                    // Update status setelah beberapa saat
+                    // Fallback status
                     setTimeout(() => {
                         if (!faceDetected) {
-                            statusEl.innerText = '👆 Gerakkan mouse atau wajah untuk parallax';
+                            statusEl.innerText = '👆 Gerakkan kepala atau mouse untuk parallax';
                         }
-                    }, 5000);
+                    }, 4000);
                     
                 } catch (err) {
                     statusEl.innerText = '❌ Inisialisasi gagal. Gunakan mouse.';
                     statusEl.classList.add('error');
-                    // Tetap jalankan fallback mouse
-                    modelLoaded = false; // supaya fallback terus
-                    detectFace();
+                    modelLoaded = false;
+                    detectAndDraw();
                     animate();
                 }
             }
@@ -490,7 +596,6 @@
                 renderer.setSize(window.innerWidth, window.innerHeight);
             });
             
-            // Mulai
             init();
         })();
     </script>
