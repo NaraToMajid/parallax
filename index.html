@@ -294,9 +294,19 @@
             const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
             mainLight.position.set(1, 1, 5);
             scene.add(mainLight);
-            scene.add(new THREE.PointLight(0x4466ff, 1, 20).set(5, 2, 5));
-            scene.add(new THREE.PointLight(0xff6644, 1, 20).set(-5, -1, 5));
-            scene.add(new THREE.PointLight(0x44ff88, 0.6, 30).set(0, 5, 10));
+            
+            // Perbaikan: buat PointLight dengan cara yang benar, bukan menggunakan .set()
+            const light1 = new THREE.PointLight(0x4466ff, 1, 20);
+            light1.position.set(5, 2, 5);
+            scene.add(light1);
+            
+            const light2 = new THREE.PointLight(0xff6644, 1, 20);
+            light2.position.set(-5, -1, 5);
+            scene.add(light2);
+            
+            const light3 = new THREE.PointLight(0x44ff88, 0.6, 30);
+            light3.position.set(0, 5, 10);
+            scene.add(light3);
             
             // --- Variabel Face Tracking ---
             let videoElement = document.getElementById('camera-video');
