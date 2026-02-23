@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Face Tracking Parallax</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    overflow:hidden;
+    background:#0f0f1a;
+    font-family:Arial, sans-serif;
+}
+
+canvas{
+    position:fixed;
+    top:0;
+    left:0;
+}
+
+#video{
+    display:none;
+}
+
+.overlay{
+    position:fixed;
+    top:20px;
+    left:20px;
+    color:white;
+    z-index:10;
+    font-size:14px;
+    background:rgba(0,0,0,0.5);
+    padding:10px 15px;
+    border-radius:10px;
+    backdrop-filter:blur(10px);
+}
+</style>
+</head>
+<body>
+
+<div class="overlay">
+    🎥 Face Tracking 3D Parallax <br>
+    Gerakkan kepala untuk efek 3D
+</div>
+
+<video id="video" autoplay playsinline></video>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/facemesh"></script>
+
+<script>
+let scene, camera, renderer;
+let layer1, layer2, layer3;
+let model;
+let targetX = 0;
+let targetY = 0;
+let smoothX = 0;
+let smoothY = 0;
+
+initThree();
+initCamera();
+initFaceTracking();
+animate();
+
+function initThree(){
+    scene = new THREE.Scene();
+
+    camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+    );
+
+    renderer = new THREE.WebGLRenderer({antialias:true});
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    document.body.appendChild(renderer.domElement);
+
+    camera.position.z = 5;
+
+    const light = new THREE.PointLight(0xffffff,1);
+    light.position.set(5,5,5);
+    scene.add(light);
+
+    const ambient = new THREE.AmbientLight(0xffffff,0.5);
+    scene.add(ambient);
+
+    createLayers();
+
+    window.addEventListener("resize",()=>{
+        camera.aspect = window.innerWidth/window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth,window.innerHeight);
+    });
+}
+
+function createLayers(){
+
+    const geometry = new THREE.PlaneGeometry(8,6);
+
+    const material1 = new THREE.MeshStandardMaterial({
+        color:0x6a5acd,
+        transparent:true,
+        opacity:0.8
+    });
+
+    const material2 = new THREE.MeshStandardMaterial({
+        color:0x9370db,
+        transparent:true,
+        opacity:0.7
+    });
+
+    const material3 = new THREE.MeshStandardMaterial({
+        color:0xffffff,
+        emissive:0x8a2be2,
+        emissiveIntensity:0.4
+    });
+
+    layer1 = new THREE.Mesh(geometry,material1);
+    layer2 = new THREE.Mesh(geometry,material2);
+    layer3 = new THREE.Mesh(geometry,material3);
+
+    layer1.position.z = -2;
+    layer2.position.z = -1;
+    layer3.position.z = 0;
+
+    scene.add(layer1);
+    scene.add(layer2);
+    scene.add(layer3);
+}
+
+async function initCamera(){
+    const video = document.getElementById("video");
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+        video:true
+    });
+
+    video.srcObject = stream;
+}
+
+async function initFaceTracking(){
+    await tf.setBackend('webgl');
+    model = await facemesh.load();
+
+    const video = document.getElementById("video");
+
+    setInterval(async()=>{
+        if(video.readyState === 4){
+            const predictions = await model.estimateFaces(video);
+
+            if(predictions.length > 0){
+                const keypoints = predictions[0].scaledMesh;
+
+                const nose = keypoints[1];
+
+                const x = (nose[0] / video.videoWidth - 0.5) * 2;
+                const y = (nose[1] / video.videoHeight - 0.5) * 2;
+
+                targetX = x;
+                targetY = y;
+            }
+        }
+    }, 50);
+}
+
+function animate(){
+    requestAnimationFrame(animate);
+
+    smoothX += (targetX - smoothX) * 0.08;
+    smoothY += (targetY - smoothY) * 0.08;
+
+    layer1.position.x = smoothX * 0.5;
+    layer1.position.y = -smoothY * 0.5;
+
+    layer2.position.x = smoothX * 1;
+    layer2.position.y = -smoothY * 1;
+
+    layer3.position.x = smoothX * 1.5;
+    layer3.position.y = -smoothY * 1.5;
+
+    layer1.rotation.y = smoothX * 0.2;
+    layer2.rotation.y = smoothX * 0.4;
+    layer3.rotation.y = smoothX * 0.6;
+
+    renderer.render(scene,camera);
+}
+</script>
+
+</body>
+</html>
